@@ -1,0 +1,9 @@
+MinimumCore:
+      Microarchitecture: Athens
+      MemorySize: 256000
+      Precision: 256
+
+TraceVariables:
+    - File: "main.c"
+      LineNumber: 88
+      Expression: "portfolioReturn"
