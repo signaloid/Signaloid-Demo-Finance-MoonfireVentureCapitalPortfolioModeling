@@ -1,5 +1,5 @@
 /*
- *	Copyright (c) 2024, Signaloid.
+ *	Copyright (c) 2024-2026, Signaloid.
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -24,27 +24,36 @@
 #include <stdbool.h>
 #include "common.h"
 
+typedef enum
+{
+	kOutputVariableIndexPortfolioReturn     = 0,
+	kOutputVariableIndexProbabilityOfLoss   = 1,
+	kOutputVariableIndexLowQuantile         = 2,
+	kOutputVariableIndexHighQuantile        = 3,
+	kOutputVariableIndexMax,
+} OutputVariableIndex;
 
 typedef enum
 {
-	kDefaultValuesNumberOfInvestements	= 100,
+	kDefaultValuesNumberOfInvestements = 150,
 } DefaultValues;
 
 typedef struct
 {
-	CommonCommandLineArguments	common;
-	double				alpha;
-	double				xMin;
-	double				xMax;
-	size_t				numberOfInvestments;
-	double				lowQuantileProbability;
-	double				highQuantileProbability;
+	CommonCommandLineArguments  common;
+	double                      alpha;
+	double                      xMin;
+	double                      xMax;
+	size_t                      numberOfInvestments;
+	double                      lowQuantileProbability;
+	double                      highQuantileProbability;
 } CommandLineArguments;
 
 /**
  *	@brief	Print out command-line usage.
  */
-void	printUsage(void);
+void
+printUsage(void);
 
 /**
  *	@brief	Get command-line arguments.
@@ -54,4 +63,17 @@ void	printUsage(void);
  *	@param	arguments	: Pointer to struct to store arguments.
  *	@return			: `kCommonConstantSuccess` if successful, else `kCommonConstantError`.
  */
-CommonConstantReturnType	getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  arguments);
+CommonConstantReturnType
+getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  arguments);
+
+/*
+ *	`determineIndexRangeOfSelectedOutputs()`, `printHumanConsumableOutput()`,
+ *	`populateJSONVariableStruct()` and `printJSONFormattedOutput()` are now
+ *	provided generically by the `common` submodule (see `common.h`), which
+ *	operates on `CommonCommandLineArguments *` and plain `size_t` indices
+ *	instead of this demo's local `CommandLineArguments *` /
+ *	`OutputVariableIndex`. This demo previously carried its own
+ *	same-named local versions of these functions with incompatible
+ *	signatures, which no longer compiles against the current `common`
+ *	submodule; `main()` now calls the generic versions directly instead.
+ */

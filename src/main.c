@@ -1,5 +1,5 @@
 /*
- *	Copyright (c) 2024, Signaloid.
+ *	Copyright (c) 2024-2026, Signaloid.
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -22,78 +22,43 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <time.h>
+#include <stdbool.h>
 #include <uxhw.h>
 #include "utilities.h"
-
-
-static const double	kMoonfireVentureCapitalConstantsTotalInvestment	= 1.0;
-
-/**
- *	@brief	Populates the `invesmentReturns` array with the initial Bounded Pareto
- *		distributions. Reads values from the `arguments`.
- *
- *	@param	arguments		: Pointer to command-line arguments struct.
- *	@param	investmentReturns	: The array of input investment returns.
- */
-static void
-loadInvestmentReturns(
-	CommandLineArguments *	arguments,
-	double *		investmentReturns)
-{
-	double	perInvestmentValue = kMoonfireVentureCapitalConstantsTotalInvestment / arguments->numberOfInvestments;
-	
-	for (size_t i = 0; i < arguments->numberOfInvestments; i++)
-	{
-		investmentReturns[i] = UxHwDoubleBoundedparetoDist(
-			arguments->alpha,
-			arguments->xMin,
-			arguments->xMax + arguments->xMin);
-		investmentReturns[i] -= arguments->xMin;
-		investmentReturns[i] *= perInvestmentValue;
-	}
-
-	return;
-}
-
-/**
- *	@brief	Calculates the portfolio return by summing the returns of each individual investment.
- *
- *	@param	arguments		: Pointer to command-line arguments struct.
- *	@param	investmentReturns	: The array of investment returns to populate.
- *
- *	@return				: Returns the calculated portfolio return.
- */
-static double
-calculatePortfolioReturn(
-	CommandLineArguments *	arguments,
-	double *		investmentReturns)
-{
-	double	portfolioReturn = 0.0;
-
-	for (size_t i = 0; i < arguments->numberOfInvestments; i++)
-	{
-		portfolioReturn += investmentReturns[i];
-	}
-
-	return portfolioReturn;
-}
+#include "kernel.h"
+#include "common.h"
 
 int
 main(int argc, char *  argv[])
 {
-	CommandLineArguments	arguments = {0};
-	double *		investmentReturns;
-	double			portfolioReturn;
-	double			probabilityOfLoss;
-	double			lowQuantile;
-	double			highQuantile;
-	double *		monteCarloOutputSamples;
-	clock_t			start = 0;
-	clock_t			end = 0;
-	double			cpuTimeInSeconds;
-	MeanAndVariance		monteCarloOutputMeanAndVariance = {0};
+	CommandLineArguments        arguments = { 0 };
+	double                      output;
+	double *                    monteCarloOutputSamples = NULL;
+	clock_t                     start   = 0;
+	clock_t                     end     = 0;
+	double                      cpuTimeInSeconds;
+	double                      outputVariables[kOutputVariableIndexMax];
+	const char *                applicationDescription = "Moonfire Venture Capital Portfolio Modeling";
+	const char *                outputVariableNames[kOutputVariableIndexMax] = {
+		[kOutputVariableIndexPortfolioReturn]   = "portfolioReturn",
+		[kOutputVariableIndexProbabilityOfLoss] = "probabilityOfLoss",
+		[kOutputVariableIndexLowQuantile]       = "lowQuantile",
+		[kOutputVariableIndexHighQuantile]      = "highQuantile",
+	};
+	const char *                outputVariableDescriptions[kOutputVariableIndexMax] = {
+		[kOutputVariableIndexPortfolioReturn]   = "Investment returns of the portfolio",
+		[kOutputVariableIndexProbabilityOfLoss] = "Probability of portfolio loss",
+		[kOutputVariableIndexLowQuantile]       = "Low quantile specified by CLA",
+		[kOutputVariableIndexHighQuantile]      = "High quantile specified by CLA",
+	};
+	kOutputVariableTypeIndex    outputVariableTypes[kOutputVariableIndexMax] = {
+		[kOutputVariableIndexPortfolioReturn]   = kOutputVariableTypeDistribution,
+		[kOutputVariableIndexProbabilityOfLoss] = kOutputVariableTypeScalar,
+		[kOutputVariableIndexLowQuantile]       = kOutputVariableTypeScalar,
+		[kOutputVariableIndexHighQuantile]      = kOutputVariableTypeScalar,
+	};
+	MeanAndVariance             meanAndVariance;
 
 	/*
 	 *	Get command-line arguments.
@@ -103,153 +68,117 @@ main(int argc, char *  argv[])
 		return EXIT_FAILURE;
 	}
 
-	if (arguments.common.isMonteCarloMode)
-	{
-		monteCarloOutputSamples =
-			(double *) checkedMalloc(
-					arguments.common.numberOfMonteCarloIterations * sizeof(double),
-					__FILE__,
-					__LINE__);
-	}
-
-	/* 
-	 *	Allocate `investmentReturns` array.
-	 */
-	investmentReturns = (double *) checkedMalloc(
-					sizeof(double) * arguments.numberOfInvestments,
-					__FILE__,
-					__LINE__);
+	monteCarloOutputSamples =
+		(double *) checkedMalloc(
+			arguments.common.numberOfMonteCarloIterations * sizeof(double),
+			__FILE__,
+			__LINE__
+		);
 
 	/*
-	 *	Start timing if timing is enabled or in benchmarking mode.
+	 *	Start timing if timing is enabled.
 	 */
-	if ((arguments.common.isTimingEnabled) || (arguments.common.isBenchmarkingMode))
+	if (arguments.common.isTimingEnabled)
 	{
 		start = clock();
 	}
 
-	for (size_t i = 0; i < arguments.common.numberOfMonteCarloIterations; ++i)
-	{
-		/*
-		 *	Load distributions for investment retruns.
-		 */
-		loadInvestmentReturns(&arguments, investmentReturns);
+	bool isSelectedOutputScalar = (arguments.common.outputSelect != kOutputVariableIndexMax) &&
+	                              (outputVariableTypes[arguments.common.outputSelect] == kOutputVariableTypeScalar);
 
-		/*
-		 *	Calculate the distribution for the total portfolio return and determine statisctical quantities.
-		 */
-		portfolioReturn = calculatePortfolioReturn(&arguments, investmentReturns);
-
-		/*
-		 *	Doesn't calculate quantiles and probability of loss when in benchmarking mode.
-		 *	Only calculates portfolio return.
-		 */
-		if (!arguments.common.isBenchmarkingMode)
-		{
-			probabilityOfLoss = 1.0 - UxHwDoubleProbabilityGT(portfolioReturn, kMoonfireVentureCapitalConstantsTotalInvestment);
-
-			lowQuantile = UxHwDoubleQuantile(portfolioReturn, arguments.lowQuantileProbability);
-			highQuantile = UxHwDoubleQuantile(portfolioReturn, arguments.highQuantileProbability);
-		}
-
-		/*
-		 *	For Monte Carlo mode, save portfolioReturn.
-		 */
-		if (arguments.common.isMonteCarloMode)
-		{
-			monteCarloOutputSamples[i] = portfolioReturn;
-		}
-	}
-
-	/*
-	 *	If not doing Laplace version, then approximate the cost of the third phase of
-	 *	Monte Carlo (post-processing), by calculating the mean and variance.
-	 */
 	if (arguments.common.isMonteCarloMode)
 	{
-		monteCarloOutputMeanAndVariance = calculateMeanAndVarianceOfDoubleSamples(
-							monteCarloOutputSamples,
-							arguments.common.numberOfMonteCarloIterations);
-		portfolioReturn = monteCarloOutputMeanAndVariance.mean;
-	}
+		output = calculateOutputMonteCarlo(&arguments, outputVariables, monteCarloOutputSamples);
 
-	/*
-	 *	Stop timing if timing is enabled or in benchmarking mode.
-	 */
-	if ((arguments.common.isTimingEnabled) || (arguments.common.isBenchmarkingMode))
-	{
-		end = clock();
-		cpuTimeInSeconds = ((double)(end - start)) / CLOCKS_PER_SEC;
-	}
-
-	if (arguments.common.isBenchmarkingMode)
-	{
 		/*
-		 *	In benchmarking mode, we print:
-		 *		(1) single result (for calculating Wasserstein distance to reference)
-		 *		(2) time in microseconds (benchmarking setup expects cpu time in microseconds)
+		 *	If not doing UxHw version, then approximate the cost of the third phase of
+		 *	Monte Carlo (post-processing), by calculating the mean and variance.
 		 */
-		printf("%lf %" PRIu64 "\n", portfolioReturn, (uint64_t)(cpuTimeInSeconds*1000000));
+		if (!isSelectedOutputScalar)
+		{
+			meanAndVariance = calculateMeanAndVarianceOfDoubleSamples(monteCarloOutputSamples, arguments.common.numberOfMonteCarloIterations);
+			output          = outputVariables[arguments.common.outputSelect] = meanAndVariance.mean;
+		}
 	}
 	else
 	{
-		/*
-		 *	Print the results in human readable format.
-		 */
-		if (!arguments.common.isOutputJSONMode)
-		{
-			printf("The forecast for the total portfolio return with portfolio size %zu is %lf times the initial total investment.\n", arguments.numberOfInvestments, portfolioReturn);
-
-			/*
-			 *	Printing probabilities in MonteCarlo Mode, does not make sense, because the values are particles.
-			 */
-			if (!arguments.common.isMonteCarloMode)
-			{
-				printf("The probability of loss for this portfolio is %"SignaloidParticleModifier"lf.\n", probabilityOfLoss);
-				printf("The %"SignaloidParticleModifier"lf quantile of the total portfolio return is %"SignaloidParticleModifier"lf.\n", arguments.lowQuantileProbability, lowQuantile);
-				printf("The %"SignaloidParticleModifier"lf quantile of the total portfolio return is %"SignaloidParticleModifier"lf.\n", arguments.highQuantileProbability, highQuantile);
-			}
-		}
-		/*
-		 *	Print the results in JSON format.
-		 */
-		else
-		{
-			JSONVariable variables[] = {
-				{
-					.variableSymbol = "portfolioReturn",
-					.variableDescription = "Portfolio return (USD)",
-					.values = (JSONVariablePointer) {.asDouble = &portfolioReturn} ,
-					.type = kJSONVariableTypeDouble,
-					.size = 1,
-				}
-			};
-
-			printJSONVariables(variables, 1, "Portfolio return.");
-		}
-
-		/*
-		 *	Print timing result.
-		 */
-		if ((arguments.common.isTimingEnabled) && (!arguments.common.isOutputJSONMode))
-		{
-			printf("CPU time used: %lf seconds\n", cpuTimeInSeconds);
-		}
+		output = calculateOutputUxHw(&arguments, outputVariables, monteCarloOutputSamples);
 	}
 
 	/*
-	 *	Free allocated dynamic memory.
+	 *	Stop timing if timing is enabled.
 	 */
-	free(investmentReturns);
+	if (arguments.common.isTimingEnabled)
+	{
+		end                 = clock();
+		cpuTimeInSeconds    = ((double) (end - start)) / CLOCKS_PER_SEC;
+	}
+
+	CommonCommandLineArguments printArguments = arguments.common;
+
+	if (arguments.common.isMonteCarloMode && isSelectedOutputScalar)
+	{
+		printArguments.isMonteCarloMode             = false;
+		printArguments.numberOfMonteCarloIterations = 1;
+	}
 
 	/*
-	 *	Save Monte Carlo outputs in an output file and free allocated dynamic memory.
+	 *	Print the results in JSON format.
+	 */
+	if (arguments.common.isOutputJSONMode)
+	{
+		printJSONFormattedOutput(
+			&printArguments,
+			monteCarloOutputSamples,
+			outputVariables,
+			outputVariableDescriptions,
+			kOutputVariableIndexMax,
+			applicationDescription
+		);
+	}
+	/*
+	 *	Print the results in human readable format.
+	 */
+	else
+	{
+		printHumanConsumableOutput(
+			&printArguments,
+			kOutputVariableIndexMax,
+			outputVariables,
+			outputVariableNames,
+			outputVariableDescriptions,
+			monteCarloOutputSamples
+		);
+	}
+
+	/*
+	 *	Print timing result.
+	 */
+	if ((arguments.common.isTimingEnabled) && (!arguments.common.isOutputJSONMode))
+	{
+		printf("CPU time used: %" SignaloidParticleModifier "lf seconds\n", cpuTimeInSeconds);
+	}
+
+	/*
+	 *	Save Monte carlo outputs in an output file.
 	 */
 	if (arguments.common.isMonteCarloMode)
 	{
-		saveMonteCarloDoubleDataToDataDotOutFile(monteCarloOutputSamples, (uint64_t)(cpuTimeInSeconds*1000000), arguments.common.numberOfMonteCarloIterations);
-		free(monteCarloOutputSamples);
+		size_t samplesToSave = isSelectedOutputScalar
+		                ? 1
+		                : arguments.common.numberOfMonteCarloIterations;
+
+		saveMonteCarloDoubleDataToDataDotOutFile(
+			monteCarloOutputSamples,
+			(uint64_t) (cpuTimeInSeconds * 1000000),
+			samplesToSave
+		);
 	}
+
+	/*
+	 *	Free dynamically-allocated memory.
+	 */
+	free(monteCarloOutputSamples);
 
 	return EXIT_SUCCESS;
 }

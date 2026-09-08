@@ -4,6 +4,27 @@ MinimumCore:
       Precision: 256
 
 TraceVariables:
-    - File: "main.c"
-      LineNumber: 88
-      Expression: "portfolioReturn"
+      - File: "main.c"
+        LineNumber: 41
+        Expression: "outputVariables[0:3]"
+
+BenchmarkingVariables:
+      - VariableName: outputVariables[0]
+        VariableDescription: Investment returns
+        OutputObject: Distribution
+        CommandLineArguments: -S 0
+      - VariableName: outputVariables[1]
+        VariableDescription: Probability of Loss
+        OutputObject: Scalar
+        CommandLineArguments: -S 1
+      - VariableName: outputVariables[2]
+        VariableDescription: Low quantile
+        OutputObject: Scalar
+        CommandLineArguments: -S 2
+      - VariableName: outputVariables[3]
+        VariableDescription: Upper quantile
+        OutputObject: Scalar
+        CommandLineArguments: -S 3
+
+BenchmarkingAllOutputs:
+      - CommandLineArguments: -S 4

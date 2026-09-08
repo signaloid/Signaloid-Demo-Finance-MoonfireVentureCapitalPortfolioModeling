@@ -1,5 +1,5 @@
 /*
- *	Copyright (c) 2024, Signaloid.
+ *	Copyright (c) 2024-2026, Signaloid.
  *
  *	Permission is hereby granted, free of charge, to any person obtaining a copy
  *	of this software and associated documentation files (the "Software"), to deal
@@ -20,7 +20,6 @@
  *	SOFTWARE.
  */
 
-#include <math.h>
 #include <ctype.h>
 #include <unistd.h>
 #include <stdio.h>
@@ -33,11 +32,11 @@
 #include "utilities.h"
 
 
-const double	kDefaultValuesAlpha			= 1.05;
-const double	kDefaultValuesXMin			= 0.35;
-const double	kDefaultValuesXMax			= 1000.0;
-const double	kDefaultValuesLowQuantileProbability	= 0.01;
-const double	kDefaultValuesHighQuantileProbability	= 0.99;
+const double    kDefaultValuesAlpha = 1.05;
+const double    kDefaultValuesXMin  = 0.35;
+const double    kDefaultValuesXMax  = 1000.0;
+const double    kDefaultValuesLowQuantileProbability    = 0.01;
+const double    kDefaultValuesHighQuantileProbability   = 0.99;
 
 void
 printUsage(void)
@@ -54,18 +53,22 @@ printUsage(void)
 		"\t[-b, --benchmarking] (Benchmarking mode: Generate outputs in format for benchmarking.)\n"
 		"\t[-j, --json] (Print output in JSON format.)\n"
 		"\t[-h, --help] (Display this help message.)\n"
-		"\t[-a, --alpha-pareto <Portfolio return bounded Pareto distribution parameter 'alpha': double in (0, inf)> (Default: %"SignaloidParticleModifier".2lf)]\n"
-		"\t[-x, --xMin-pareto <Portfolio return bounded Pareto distribution parameter 'xMin': double in (0, xMax]> (Default: %"SignaloidParticleModifier".2lf)]\n"
-		"\t[-X, --xMax-pareto <Portfolio return bounded Pareto distribution parameter 'xMax': double in [xMin, inf)> (Default: %"SignaloidParticleModifier".2lf)]\n"
+		"\t[-a, --alpha-pareto <Portfolio return bounded Pareto distribution parameter 'alpha': double in (0, inf)> (Default: %"SignaloidParticleModifier
+		".2lf)]\n"
+		"\t[-x, --xMin-pareto <Portfolio return bounded Pareto distribution parameter 'xMin': double in (0, xMax]> (Default: %"SignaloidParticleModifier
+		".2lf)]\n"
+		"\t[-X, --xMax-pareto <Portfolio return bounded Pareto distribution parameter 'xMax': double in [xMin, inf)> (Default: %"SignaloidParticleModifier
+		".2lf)]\n"
 		"\t[-n, --number-of-investments <Number of investments in portfolio: size_t in [1, inf)> (Default: %zu)]\n"
 		"\t[-q, --low-quantile-probability <Low quantile probability: double in (0, 1)> (Default: %"SignaloidParticleModifier".2lf)]\n"
 		"\t[-Q, --high-quantile-probability <High quantile probability: double in (0, 1)]> (Default: %"SignaloidParticleModifier".2lf)]\n",
 		kDefaultValuesAlpha,
 		kDefaultValuesXMin,
 		kDefaultValuesXMax,
-		(size_t)kDefaultValuesNumberOfInvestements,
+		(size_t) kDefaultValuesNumberOfInvestements,
 		kDefaultValuesLowQuantileProbability,
-		kDefaultValuesHighQuantileProbability);
+		kDefaultValuesHighQuantileProbability
+	);
 	fprintf(stderr, "\n");
 
 	return;
@@ -78,7 +81,7 @@ printUsage(void)
  *	@return			: `kCommonConstantReturnTypeSuccess` if successful, else `kCommonConstantReturnTypeError`.
  */
 static CommonConstantReturnType
-setDefaultCommandLineArguments(CommandLineArguments *  arguments)
+setDefaultCommandLineArguments(CommandLineArguments * arguments)
 {
 	if (arguments == NULL)
 	{
@@ -101,13 +104,13 @@ setDefaultCommandLineArguments(CommandLineArguments *  arguments)
 
 	*arguments = (CommandLineArguments)
 	{
-		.common				= (CommonCommandLineArguments) {0},
-		.alpha				= kDefaultValuesAlpha,
-		.xMin				= kDefaultValuesXMin,
-		.xMax				= kDefaultValuesXMax,
-		.numberOfInvestments		= kDefaultValuesNumberOfInvestements,
-		.lowQuantileProbability		= kDefaultValuesLowQuantileProbability,
-		.highQuantileProbability	= kDefaultValuesHighQuantileProbability,
+		.common                     = (CommonCommandLineArguments) { 0 },
+		.alpha                      = kDefaultValuesAlpha,
+		.xMin                       = kDefaultValuesXMin,
+		.xMax                       = kDefaultValuesXMax,
+		.numberOfInvestments        = kDefaultValuesNumberOfInvestements,
+		.lowQuantileProbability     = kDefaultValuesLowQuantileProbability,
+		.highQuantileProbability    = kDefaultValuesHighQuantileProbability,
 	};
 #pragma GCC diagnostic pop
 
@@ -117,12 +120,12 @@ setDefaultCommandLineArguments(CommandLineArguments *  arguments)
 CommonConstantReturnType
 getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  arguments)
 {
-	const char *	alphaArg = NULL;
-	const char *	xMinArg = NULL;
-	const char *	xMaxArg = NULL;
-	const char *	numberOfInvestmentsArg = NULL;
-	const char *	lowQuantileProbabilityArg = NULL;
-	const char *	highQuantileProbabilityArg = NULL;
+	const char *    alphaArg                    = NULL;
+	const char *    xMinArg                     = NULL;
+	const char *    xMaxArg                     = NULL;
+	const char *    numberOfInvestmentsArg      = NULL;
+	const char *    lowQuantileProbabilityArg   = NULL;
+	const char *    highQuantileProbabilityArg  = NULL;
 
 	if (arguments == NULL)
 	{
@@ -136,15 +139,25 @@ getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  argume
 		return kCommonConstantReturnTypeError;
 	}
 
-	DemoOption	options[] =
-	{
-		{ .opt = "a", .optAlternative = "alpha-pareto",			.hasArg = true, .foundArg = &alphaArg,				.foundOpt = NULL },
-		{ .opt = "x", .optAlternative = "xMin-pareto",			.hasArg = true, .foundArg = &xMinArg,				.foundOpt = NULL },
-		{ .opt = "X", .optAlternative = "xMax-pareto",			.hasArg = true, .foundArg = &xMaxArg,				.foundOpt = NULL },
-		{ .opt = "n", .optAlternative = "number-of-investments",	.hasArg = true, .foundArg = &numberOfInvestmentsArg,		.foundOpt = NULL },
-		{ .opt = "q", .optAlternative = "low-quantile-probability",	.hasArg = true, .foundArg = &lowQuantileProbabilityArg,		.foundOpt = NULL },
-		{ .opt = "Q", .optAlternative = "high-quantile-probability",	.hasArg = true, .foundArg = &highQuantileProbabilityArg,	.foundOpt = NULL },
-		{0},
+	DemoOption options[] = {
+		{ .opt      = "a", .optAlternative = "alpha-pareto",
+		  .hasArg   = true,
+		  .foundArg = &alphaArg,
+		  .foundOpt = NULL },
+		{ .opt      = "x", .optAlternative = "xMin-pareto",
+		  .hasArg   = true,
+		  .foundArg = &xMinArg,
+		  .foundOpt = NULL },
+		{ .opt      = "X", .optAlternative = "xMax-pareto",
+		  .hasArg   = true,
+		  .foundArg = &xMaxArg, .foundOpt = NULL },
+		{ .opt      = "n", .optAlternative = "number-of-investments",
+		  .hasArg   = true, .foundArg = &numberOfInvestmentsArg, .foundOpt = NULL },
+		{ .opt      = "q", .optAlternative = "low-quantile-probability",
+		  .hasArg   = true, .foundArg = &lowQuantileProbabilityArg, .foundOpt = NULL },
+		{ .opt      = "Q", .optAlternative = "high-quantile-probability",
+		  .hasArg   = true, .foundArg = &highQuantileProbabilityArg, .foundOpt = NULL },
+		{ 0 },
 	};
 
 	if (parseArgs(argc, argv, &arguments->common, options) != kCommonConstantReturnTypeSuccess)
@@ -176,12 +189,38 @@ getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  argume
 		return kCommonConstantReturnTypeError;
 	}
 
-	if (arguments->common.isOutputSelected)
+	/*
+	 *	If no output is selected, set `outputSelect` to `kOutputVariableIndexMax`.
+	 *	This triggers the demo to compute all outputs.
+	 */
+	if (!arguments->common.isOutputSelected)
 	{
-		fprintf(stderr, "Error: Output select option not supported.\n");
+		arguments->common.outputSelect = kOutputVariableIndexMax;
+	}
+
+	/*
+	 *	When `outputSelect` is set to `kOutputVariableIndexMax`, we cannot be
+	 *	in benchmarking mode or Monte Carlo mode.
+	 */
+	if (arguments->common.outputSelect == kOutputVariableIndexMax)
+	{
+		if ((arguments->common.isBenchmarkingMode) || (arguments->common.isMonteCarloMode))
+		{
+			fprintf(stderr, "Error: Please select a single output when in benchmarking mode or Monte Carlo mode.\n");
+
+			return kCommonConstantReturnTypeError;
+		}
+	}
+	/*
+	 *	Selected output can never be greater than `kOutputVariableIndexMax`.
+	 */
+	else if (arguments->common.outputSelect > kOutputVariableIndexMax)
+	{
+		fprintf(stderr, "Error: Wrong output selection.\n");
 
 		return kCommonConstantReturnTypeError;
 	}
+
 
 	if (arguments->common.isVerbose)
 	{
@@ -195,8 +234,8 @@ getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  argume
 	 */
 	if (alphaArg != NULL)
 	{
-		double	alpha;
-		int	ret = parseDoubleChecked(alphaArg, &alpha);
+		double  alpha;
+		int     ret = parseDoubleChecked(alphaArg, &alpha);
 
 		if (ret != kCommonConstantReturnTypeSuccess)
 		{
@@ -222,8 +261,8 @@ getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  argume
 	 */
 	if (xMinArg != NULL)
 	{
-		double	xMin;
-		int	ret = parseDoubleChecked(xMinArg, &xMin);
+		double  xMin;
+		int     ret = parseDoubleChecked(xMinArg, &xMin);
 
 		if (ret != kCommonConstantReturnTypeSuccess)
 		{
@@ -249,8 +288,8 @@ getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  argume
 	 */
 	if (xMaxArg != NULL)
 	{
-		double	xMax;
-		int	ret = parseDoubleChecked(xMaxArg, &xMax);
+		double  xMax;
+		int     ret = parseDoubleChecked(xMaxArg, &xMax);
 
 		if (ret != kCommonConstantReturnTypeSuccess)
 		{
@@ -284,8 +323,8 @@ getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  argume
 	 */
 	if (numberOfInvestmentsArg != NULL)
 	{
-		int	numberOfInvestments;
-		int	ret = parseIntChecked(numberOfInvestmentsArg, &numberOfInvestments);
+		int numberOfInvestments;
+		int ret = parseIntChecked(numberOfInvestmentsArg, &numberOfInvestments);
 
 		if (ret != kCommonConstantReturnTypeSuccess)
 		{
@@ -311,8 +350,8 @@ getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  argume
 	 */
 	if (lowQuantileProbabilityArg != NULL)
 	{
-		double	lowQuantileProbability;
-		int	ret = parseDoubleChecked(lowQuantileProbabilityArg, &lowQuantileProbability);
+		double  lowQuantileProbability;
+		int     ret = parseDoubleChecked(lowQuantileProbabilityArg, &lowQuantileProbability);
 
 		if (ret != kCommonConstantReturnTypeSuccess)
 		{
@@ -338,8 +377,8 @@ getCommandLineArguments(int argc, char *  argv[], CommandLineArguments *  argume
 	 */
 	if (highQuantileProbabilityArg != NULL)
 	{
-		double	highQuantileProbability;
-		int	ret = parseDoubleChecked(highQuantileProbabilityArg, &highQuantileProbability);
+		double  highQuantileProbability;
+		int     ret = parseDoubleChecked(highQuantileProbabilityArg, &highQuantileProbability);
 
 		if (ret != kCommonConstantReturnTypeSuccess)
 		{
