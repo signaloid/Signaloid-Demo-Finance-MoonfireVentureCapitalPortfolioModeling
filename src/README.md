@@ -1,7 +1,24 @@
 # Source code:
 
 ## main.c
-Implementation of the calculation of the portfolio return algorithm.
+Top-level driver: parses command-line arguments, dispatches to the UxHw or
+Monte Carlo kernel, and prints the results.
+
+## kernel.c/h
+Mode-dispatch layer shared by both execution modes: declares the
+`calculateOutputUxHw()` / `calculateOutputMonteCarlo()` entry points called
+from `main.c`, and the output-index-driven logic for computing the selected
+output(s).
+
+## moonfire-venture-capital-portfolio-uxhw.c/h
+UxHw-mode implementation of the portfolio model: computes the portfolio
+return distribution and the derived probability-of-loss/quantile outputs
+using the UxHw API.
+
+## moonfire-venture-capital-portfolio-monte-carlo.c/h
+Native Monte Carlo implementation of the portfolio model: draws samples for
+the portfolio return and computes the derived probability-of-loss/quantile
+outputs from the sample set.
 
 ## utilities.c/h
 These contain utility methods for parsing, setting, and reporting
@@ -34,12 +51,11 @@ building the C/C++ demo application.
 
 # To Build Natively on Non-Signaloid Platforms
 
-## On MacOS (with MacPorts)
+From the repository root (not from `src/`), run:
 ```
-gcc -O3 -I. -I/opt/local/include main.c utilities.c common.c uxhw.c -L/opt/local/lib -lgsl -lgslcblas
+make local-build
 ```
-
-## On Linux
-```
-gcc -O3 -I. -I/opt/local/include main.c utilities.c common.c uxhw.c -L/opt/local/lib -lgsl -lgslcblas -lm
-```
+This builds all of the sources listed in `config.mk` (plus `uxhw.c`) and
+produces the `demo-native-mc` executable at the repository root. See the
+[Prerequisites](../README.md#prerequisites) section of the root `README.md`
+for required dependencies.
