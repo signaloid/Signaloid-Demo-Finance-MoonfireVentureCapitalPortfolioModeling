@@ -160,7 +160,7 @@ main(int argc, char *  argv[])
 	}
 
 	/*
-	 *	Save Monte carlo outputs in an output file.
+	 *	Save Monte Carlo outputs in an output file.
 	 */
 	if (arguments.common.isMonteCarloMode)
 	{
